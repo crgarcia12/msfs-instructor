@@ -1,0 +1,176 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <!-- Styles -->
+    <link rel="stylesheet" href="~/css/normalize.css">
+    <link href="https://unpkg.com/tailwindcss@@^1.0/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin="" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="~/css/main.css" rel="stylesheet" />
+    <!-- Scripts -->
+    <environment include="Development">
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    </environment>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+    <script src="~/js/leaflet.rotatedMarker.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.js"></script>
+    <script src='//unpkg.com/leaflet-arc/bin/leaflet-arc.min.js'></script>
+    <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
+    <!-- Carlos -->
+    <style>
+        .chat-bubble {
+            background-color: #f1f1f1;
+            border-radius: 15px;
+            padding: 10px;
+            margin: 10px 0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .chat-bubble .material-icons {
+            margin-left: 10px;
+        }
+    </style>
+    <!-- END Carlos -->
+</head>
+<body class="h-full">
+    <div id="container" class="flex flex-col h-screen">
+        <div id="hud" class="relative flex justify-center items-center bg-gray-800 text-orange-100" v-bind:class="barHidden ? 'h-8' : 'h-32'">
+            <div id="data" class="w-full h-full overflow-x-auto md:overflow-x-hidden md:grid grid-flow-col grid-cols-2 grid-rows-2 lg:grid-rows-none lg:grid-cols-3" v-if="simConnected" v-bind:class="{ barHidden : barHidden }">
+                <div class="mt-2 flex flex-row justify-center lg:col-start-2 lg:col-span-1" v-bind:class="[ acInfo.autopilot.available ? 'col-start-2' : 'col-start-1 col-span-2' ]">
+                    <div id="airspeedContainer" class="mr-12 lg:mr-16 text-center">
+                        <h2 class="text-sm lg:text-lg">Airspeed</h2>
+                        <p id="indicatedAirspeed" class="text-3xl lg:text-4xl">{{ Math.round(acInfo.airspeedIndicated) }} kts</p>
+                        <p id="trueAirspeed" class="text-sm">{{ Math.round(acInfo.airspeedTrue) }} kts (TAS)</p>
+                    </div>
+                    <div id="altitudeContainer" class="mr-12 lg:mr-16 text-center">
+                        <h2 class="text-sm lg:text-lg">Altitude</h2>
+                        <p id="altitude" class="text-3xl lg:text-4xl">{{ Math.round(acInfo.altitude) }} ft</p>
+                    </div>
+                    <div id="fuelContainer" class="lg:mr-16 text-center">
+                        <h2 class="text-sm lg:text-lg">Fuel</h2>
+                        <p id="fuel" class="text-3xl lg:text-4xl" v-bind:class="fuelQuantityPercent <= 10 ? 'text-red-600' : 'text-orange-100'">{{ fuelQuantityPercent }}%</p>
+                    </div>
+                </div>
+                <div class="flex justify-center mt-2 lg:block row-start-2 col-start-1 col-end-3 lg:row-span-1 lg:col-start-3" v-show="acInfo.gpsWaypointModeActive">
+                    <h2 class="text-lg hidden lg:block">Navigation</h2>
+                    <p id="wpDistance" class="mr-6">Distance to next WP: {{ Math.round(acInfo.gpsWaypointDistance / 1000) }} km</p>
+                    <p id="wpETE">ETE to next WP: {{ convertSecondsToHMS(acInfo.gpswpete) }}</p>
+                </div>
+                <div id="autopilotContainer" class="flex flex-col items-center my-2 col-start-1" v-show="acInfo.autopilot.available">
+                    <h2 class="text-sm lg:text-lg">Autopilot</h2>
+                    <div class="flex justify-center w-full grid grid-flow-col grid-rows-2 gap-y-2 lg:gap-2">
+                        <div class="flex flex-col items-center statusPillContainer" v-for="(value, key) in autopilotProperties" v-bind:key="key">
+                            <div class="text-sm">{{ apDisplayName(key) }}</div>
+                            <div class="rounded-full statusPill" v-bind:class="[value ? 'bg-green-500' : 'bg-red-600']" v-bind:title="key"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="connectionRequired" class="text-center" v-else>
+                <p class="text-xl" v-if="simConnected === null">Connecting to the flight sim...</p>
+                <p class="text-xl" v-else-if="!simConnected">Unable to connect to the flight sim. Please make sure the flight sim is running and restart the app.</p>
+            </div>
+            <div class="absolute bottom-0 right-0 cursor-pointer">
+                <span class="material-icons mr-2" v-on:click="barHidden = !barHidden">{{ barHidden ? 'expand_more' : 'expand_less' }}</span>
+            </div>
+        </div>
+        <div class="flex-1 h-full relative">
+            <div id="map" class="h-full"></div>
+            <div id="airportInfo" class="absolute top-0 right-0 bg-white shadow-lg overflow-y-auto flex-1 h-full">
+                <div class="flex justify-between items-center bg-orange-400 p-4">
+                    <h2 class="text-lg font-bold">Agent Events</h2>
+                    <span class="material-icons cursor-pointer" v-on:click="selectedAirport = null">close</span>
+                </div>
+
+                <!-- # Carlos -->
+                <ul>
+                    <li v-for="event in agentevents">
+                        <div class="p-4 chat-bubble">
+                            <div class="flex justify-between items-center">
+                                <h3 :class="['text-lg', 'font-bold', getAgentClass(event.agent)]">
+                                    <i class="material-icons">{{ getAgentIcon(event.agent) }}</i>
+                                    {{ event.agent }}:
+                                </h3> {{ event.message }}
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+                <!-- # Carlos -->
+
+            </div>
+        </div>
+        <div class="leaflet-touch leaflet-top leaflet-left custom-control absolute left-0">
+            <div class="leaflet-bar leaflet-control">
+                <button type="button" class="leaflet-bar-part leaflet-interactive unnamed-state-active" v-on:click="showSearch = !showSearch">
+                    <span class="button-state state-unnamed-state unnamed-state-active">
+                        <span class="material-icons">search</span>
+                    </span>
+                </button>
+                <div v-if="showSearch" id="searchBoxContainer" class="absolute bg-white box-content">
+                    <input type="text" name="name" value="" class="h-full w-full" v-model="searchText" v-on:input="searchAirports" />
+                    <div id="searchResults" class="bg-white" v-if="searchResults.length > 0">
+                        <ul>
+                            <li v-for="(item, index) in searchResults[0]" v-bind:key="index" v-on:click="focusAirport(item)" class="px-3 py-2 cursor-pointer hover:bg-gray-200">{{ item.name }}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="overlay" class="absolute inset-0 h-full w-full flex bg-gray-500 bg-opacity-50 justify-center items-center" v-on:click.self="showAlerts = false" v-if="showAlerts">
+            <div class="bg-white w-full max-w-md rounded shadow-lg">
+                <h2 class="text-2xl text-gray-200 bg-gray-800 pl-4 py-3 rounded-t">Alerts</h2>
+                <div class="p-4">
+                    <h3 class="text-lg text-gray-800 mb-2">Create a new alert</h3>
+                    <div class="flex">
+                        <div class="inline-block relative w-1/3">
+                            <select class="w-full block appearance-none bg-white border border-gray-400 hover:border-gray-500 px-2 py-2 rounded shadow leading-tight focus:outline-none text-sm cursor-pointer" v-model="alertForm.property">
+                                <option value="elapsed">Elapsed time</option>
+                                <option value="ete">ETE</option>
+                                <option value="wp">WP Distance</option>
+                                <option value="airspeed">Airspeed</option>
+                                <option value="altitude">Altitude</option>
+                                <option value="fuel">Fuel</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                            </div>
+                        </div>
+                        <div class="inline-block relative w-1/3 mx-3">
+                            <select class="w-full block appearance-none bg-white border border-gray-400 hover:border-gray-500 px-2 py-2 rounded shadow leading-tight focus:outline-none text-sm cursor-pointer" v-model="alertForm.operator">
+                                <option value="equals">equals</option>
+                                <option value="less" v-if="alertForm.property !== 'elapsed'">is less than</option>
+                                <option value="greater"v-if="alertForm.property !== 'elapsed'">is greater than</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                            </div>
+                        </div>
+                        <input v-if="alertForm.property === 'elapsed' || alertForm.property === 'ete'" type="text" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}" placeholder="##:##:##" name="name" class="bg-white border border-gray-400 hover:border-gray-500 px-2 rounded shadow leading-tight focus:outline-none text-sm w-1/3" v-model="alertForm.value" />
+                        <input v-else type="number" name="name" class="bg-white border border-gray-400 hover:border-gray-500 px-2 rounded shadow leading-tight focus:outline-none text-sm w-1/3" v-model="alertForm.value" />
+                    </div>
+                    <p class="text-sm text-orange-600 mt-1 ml-1 text-right" v-if="alertForm.property === 'elapsed' || alertForm.property === 'ete'">Value must be specified in hh:mm:ss</p>
+                    <div class="flex justify-end items-center mt-4">
+                        <p class="text-blue-500 hover:text-blue-800 cursor-pointer mr-5" v-on:click="showAlerts = false">Cancel</p>
+                        <button type="button" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded font-bold disabled:opacity-75" v-bind:disabled="!alertForm.value" v-on:click="saveAlert">Save</button>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <h3 class="text-lg text-gray-800 mb-2">Current Alerts</h3>
+                    <ul v-if="alerts.length > 0">
+                        <li v-for="alert in alerts" class="flex justify-between text-sm border border-gray-400 rounded p-3 mb-1">{{ alert.name }} <span class="text-red-600 cursor-pointer" v-on:click="removeAlert(alert)">Delete</span></li>
+                    </ul>
+                    <p v-else class="text-sm">You have no alerts configured</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="~/js/signalr/dist/browser/signalr.min.js"></script>
+    <script src="~/js/main.js" type="text/javascript"></script>
+</body>
+</html>

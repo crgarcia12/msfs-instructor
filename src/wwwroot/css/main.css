@@ -1,0 +1,113 @@
+﻿#hud {
+    transition: height 0.3s;
+}
+
+.text-5xl {
+    line-height: 3.5rem;
+}
+
+.statusPillContainer {
+    width: 50px;
+}
+
+.statusPill {
+    height: 0.5rem;
+    width: 1rem;
+}
+
+.easy-button-button > span.button-state, .custom-control span.button-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.custom-control {
+    top: 20.9rem;
+    transition: top 0.3s;
+}
+
+#hud.h-8 ~ .custom-control {
+    top: 14.9rem;
+}
+
+.leaflet-bar.disabled, .leaflet-bar button.disabled {
+    cursor: pointer;
+    pointer-events: all;
+}
+
+.barHidden h2 {
+    display: none !important;
+}
+
+.barHidden p {
+    font-size: 1rem;
+}
+
+.barHidden > div {
+    margin-top: 0;
+}
+
+.barHidden > div:not(:last-child) {
+    margin-top: 0.2rem;
+}
+
+.barHidden #autopilotContainer > div {
+    display: flex !important;
+}
+
+.barHidden #indicatedAirspeed, .barHidden #wpDistance, .barHidden #wpETE {
+    display: inline-block;
+}
+
+.barHidden #trueAirspeed {
+    display: none;
+}
+
+.barHidden #trueAirspeed {
+    font-size: 0.7rem !important;
+}
+
+.barHidden .statusPill {
+    margin-top: -0.1rem;
+}
+
+#searchBoxContainer {
+    left: 30px;
+    top: -2px;
+    height: auto;
+    border: 2px solid rgba(0,0,0,0.2);
+    width: 12rem;
+}
+
+#searchBoxContainer input {
+    padding: 0.2rem 0.4rem;
+    height: 30px;
+}
+
+#searchResults {
+    background: white;
+    font-size: 0.7rem;
+    border-top: 2px solid rgba(0,0,0,0.2);
+    max-height: 20rem;
+    overflow-y: auto;
+}
+
+#airportInfo {
+    width: 40rem;
+    z-index: 9999;
+}
+
+#overlay {
+    z-index: 99999;
+}
+
+#overlay button:disabled {
+    opacity: 75%;
+    cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+    #data {
+        grid-template-rows: 75% 1fr;
+    }
+}
