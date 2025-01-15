@@ -6,7 +6,6 @@ public class AgentEvent
     public object Sender { get; set; }
     public object Data { get; set; }
     public string FrontEndMessage { get; set; }
-
     public string CopilotCommand {get;set;}
 
 

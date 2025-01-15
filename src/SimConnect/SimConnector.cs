@@ -11,22 +11,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting;
 using static MSFSInstructor.SimConnectStructs;
 
-public class AgentFrontEndEvent
-{
-    public string agent { get; set; }
-    public string message { get; set; }
-}
-
-public class ClientData
-{
-    public bool IsConnected { get; set; }
-    public AircraftStatusModel Data { get; set; }
-}
-
 public class SimConnector
 {
-    private static int eventssent = 0;
-
     public AircraftStatusModel AircraftStatus { get; private set; }
     public bool IsConnected => simconnect != null;
 
@@ -140,9 +126,6 @@ public class SimConnector
 
     private async Task SendAgentEventsToFrontEnd()
     {
-        
-        //if (eventssent++%3 != 0) return;
-
         //await Task.Delay(5000);
         //var agentEvent = new AgentFrontEndEvent()
         //{
@@ -179,7 +162,7 @@ public class SimConnector
         {
             case (uint)DATA_REQUEST.AircraftStatus:
                 AircraftStatus = new AircraftStatusModel((AircraftStatusStruct)data.dwData[0]);
-                ClientData clientData = new ClientData()
+                SimConnectClientData clientData = new SimConnectClientData()
                 {
                     IsConnected = true,
                     Data = AircraftStatus
@@ -206,7 +189,7 @@ public class SimConnector
 
     private void Disconnect()
     {
-        ClientData clientData = new ClientData()
+        SimConnectClientData clientData = new SimConnectClientData()
         {
             IsConnected = false
         };
@@ -346,9 +329,9 @@ public class SimConnector
         runner.Start();
     }
 
-    private ClientData GenTestData()
+    private SimConnectClientData GenTestData()
     {
-        var wsData = new ClientData()
+        var wsData = new SimConnectClientData()
         {
             IsConnected = true,
             Data = AircraftStatusModel.GetDummyData()

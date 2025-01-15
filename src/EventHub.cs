@@ -18,7 +18,7 @@ internal class EventHub
             new AzureCliCredential());
     }
 
-    public async Task SendEventAsync(ClientData eventBody)
+    public async Task SendEventAsync(SimConnectClientData eventBody)
     {
         using EventDataBatch eventBatch = await _producerClient.CreateBatchAsync();
 

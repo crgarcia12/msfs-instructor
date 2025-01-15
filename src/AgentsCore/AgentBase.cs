@@ -15,4 +15,9 @@ public abstract class AgentBase
     }
 
     public abstract Task ProcessEvent(AgentEvent agentEvent);
+
+    internal async Task SendEvent(AgentEvent agentEvent)
+    {
+        await _agentManager.SendEventAsync(agentEvent);
+    }
 }
